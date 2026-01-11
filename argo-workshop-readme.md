@@ -141,6 +141,7 @@ Open Argo CD UI - you should see `gdal-api` application in `OutOfSync` state.
 ### Step 5: Sync the application
 
 In Argo CD UI:
+
 1. Click on `gdal-api` application
 2. Click **SYNC** button
 3. Click **SYNCHRONIZE**
@@ -240,6 +241,7 @@ Watch Argo CD UI - it will automatically detect the change and deploy 2 pods.
 ### ✅ Part II Complete!
 
 You've experienced the full GitOps workflow:
+
 - **Git as source of truth** - changes come from Git, not kubectl
 - **Auto-sync** - automatic deployment when Git changes
 - **Self-healing** - automatic recovery from manual changes
@@ -249,6 +251,7 @@ You've experienced the full GitOps workflow:
 ## Key Concepts Recap
 
 ### What Argo CD DOES
+
 - Monitors Git repositories
 - Compares desired state (Git) vs actual state (cluster)
 - Deploys applications to Kubernetes
@@ -257,6 +260,7 @@ You've experienced the full GitOps workflow:
 - Audit trail of all deployments
 
 ### What Argo CD DOES NOT do
+
 - Build Docker images
 - Run tests
 - Push to container registry
@@ -313,5 +317,3 @@ kubectl delete namespace argocd
 ## Next Steps
 
 - Explore [Argo Workflows](https://argoproj.github.io/argo-workflows/) for CI/CD pipelines
-- Add [Argo Rollouts](https://argoproj.github.io/argo-rollouts/) for canary deployments
-- Set up [GitHub webhooks](https://argo-cd.readthedocs.io/en/stable/operator-manual/webhook/) for instant sync
