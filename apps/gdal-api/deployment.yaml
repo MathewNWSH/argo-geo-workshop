@@ -5,7 +5,7 @@ metadata:
   labels:
     app: gdal-api
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: gdal-api
@@ -16,8 +16,7 @@ spec:
     spec:
       containers:
       - name: gdal-api
-        image: gdal-api:local
-        imagePullPolicy: Never
+        image: ghcr.io/mathewnwsh/argo-geo-workshop/gdal-api:latest
         ports:
         - containerPort: 8000
         livenessProbe:
