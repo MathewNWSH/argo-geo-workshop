@@ -33,3 +33,4 @@ def gdalinfo(request: GdalInfoRequest):
 @app.get("/")
 def root():
     return {"message": "GDAL Info API", "endpoints": ["/health", "/gdalinfo"]}
+# trigger build
