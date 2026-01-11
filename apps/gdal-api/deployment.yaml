@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gdal-api
-        image: ghcr.io/mathewnwsh/argo-geo-workshop/gdal-api:a9199a5fa55c002a5042a3d62d7d28523b9f05c7
+        image: ghcr.io/mathewnwsh/argo-geo-workshop/gdal-api:6d2f2e1b41da071faad75b8e9eb05a52857b5b74
         ports:
         - containerPort: 8000
         livenessProbe:
