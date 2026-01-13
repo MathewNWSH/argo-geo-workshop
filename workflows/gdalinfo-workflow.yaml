@@ -2,6 +2,8 @@ apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
   name: gdalinfo-workflow
+  annotations:
+    workflows.argoproj.io/description: "Fetches basic metadata for a GeoTIFF URL using gdalinfo."
 spec:
   entrypoint: process-geotiff
   arguments:
