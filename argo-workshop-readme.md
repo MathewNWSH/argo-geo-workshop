@@ -6,7 +6,6 @@ A hands-on workshop for deploying geospatial applications using Argo CD and GitO
 
 - [Rancher Desktop](https://rancherdesktop.io/) installed and running (or any local Kubernetes)
 - `kubectl` configured and connected to your cluster
-- `helm` installed
 - GitHub account
 - Git configured locally
 
@@ -35,10 +34,10 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 Wait for pods to be ready:
 
 ```bash
-kubectl get pods -n argocd -w
+kubectl get pods -n argocd
 ```
 
-Press `Ctrl+C` when all pods show `Running` status.
+Wait until all pods show `Running` status.
 
 ### Step 2: Access Argo CD UI
 
@@ -63,9 +62,9 @@ Open browser: https://localhost:8080
 
 > Note: Browser will warn about certificate - click "Advanced" → "Proceed" to continue.
 
-### Step 3: Configure faster sync (optional)
+### Step 3: Configure faster sync interval (optional)
 
-By default, Argo CD checks Git every 3 minutes. For workshop, let's make it faster:
+By default, Argo CD checks Git every 3 minutes. For the workshop, let's make it faster:
 
 ```bash
 kubectl patch configmap argocd-cm -n argocd --type merge -p '{"data":{"timeout.reconciliation":"30s"}}'
@@ -106,20 +105,20 @@ argo-geo-workshop/
 │       ├── deployment.yaml   # Kubernetes Deployment
 │       └── service.yaml      # Kubernetes Service
 ├── argocd/
-│   └── gdal-api-app.yaml     # Argo CD Application definition
+│   ├── gdal-api-manual-sync.yaml   # Manual sync example
+│   └── gdal-api-auto-sync.yaml     # Auto-sync + self-heal example
 └── .github/
     └── workflows/
-        └── build-gdal-api.yaml  # CI pipeline
+        └── build-gdal-api.yaml     # CI pipeline
 ```
 
 ### Step 3: Update repository URL
 
-Edit `argocd/gdal-api-app.yaml` and replace the repo URL with your fork:
+Edit the Argo CD application file and replace the repo URL with your fork:
 
-```yaml
-spec:
-  source:
-    repoURL: https://github.com/YOUR_USERNAME/argo-geo-workshop.git
+```bash
+sed -i 's/MathewNWSH/YOUR_USERNAME/g' argocd/gdal-api-manual-sync.yaml
+sed -i 's/MathewNWSH/YOUR_USERNAME/g' argocd/gdal-api-auto-sync.yaml
 ```
 
 Commit and push:
@@ -130,25 +129,61 @@ git commit -m "Update repo URL to my fork"
 git push
 ```
 
-### Step 4: Create the Application in Argo CD
+---
+
+## Part III: Sync Scenarios
+
+### Scenario A: Manual Sync
+
+Deploy with manual sync - you control when changes are applied:
 
 ```bash
-kubectl apply -f argocd/gdal-api-app.yaml
+kubectl apply -f argocd/gdal-api-manual-sync.yaml
 ```
 
 Open Argo CD UI - you should see `gdal-api` application in `OutOfSync` state.
 
-### Step 5: Sync the application
-
-In Argo CD UI:
+**To sync:**
 
 1. Click on `gdal-api` application
 2. Click **SYNC** button
 3. Click **SYNCHRONIZE**
 
-Watch the deployment progress in the UI.
+### Scenario B: Auto-Sync + Self-Heal
 
-### Step 6: Test the API
+Deploy with automatic sync and self-healing:
+
+```bash
+kubectl apply -f argocd/gdal-api-auto-sync.yaml
+```
+
+**What's different?**
+
+| Feature                 | Manual Sync         | Auto-Sync |
+| ----------------------- | ------------------- | --------- |
+| Sync after git push     | Manual (click SYNC) | Automatic |
+| Self-heal               | ❌                  | ✅        |
+| Prune deleted resources | ❌                  | ✅        |
+
+### Demo: Self-Healing in Action
+
+With auto-sync enabled, try to manually change replicas:
+
+```bash
+kubectl scale deployment/gdal-api -n geo --replicas=5
+```
+
+Watch what happens:
+
+```bash
+kubectl get pods -n geo -w
+```
+
+Argo CD will detect the drift and restore to 1 replica (as defined in Git). This is **self-healing** - the cluster always matches Git!
+
+---
+
+## Part IV: Test the API
 
 Start port-forward to the service:
 
@@ -170,62 +205,11 @@ curl -X POST http://localhost:8000/gdalinfo \
 
 You should see GeoTIFF metadata (size, CRS, bands, etc.).
 
-### Step 7: Experience GitOps - Auto-sync
+---
 
-Enable auto-sync by updating the Application:
+## Part V: GitOps Flow - Deploy via Git
 
-```bash
-cat > argocd/gdal-api-app.yaml << 'EOF'
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: gdal-api
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/YOUR_USERNAME/argo-geo-workshop.git
-    targetRevision: master
-    path: apps/gdal-api
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: geo
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-EOF
-```
-
-> ⚠️ Remember to replace `YOUR_USERNAME` with your GitHub username!
-
-Apply:
-
-```bash
-kubectl apply -f argocd/gdal-api-app.yaml
-```
-
-### Step 8: Test Self-Healing
-
-Try to manually change replicas:
-
-```bash
-kubectl scale deployment/gdal-api -n geo --replicas=5
-```
-
-Watch what happens:
-
-```bash
-kubectl get pods -n geo -w
-```
-
-Argo CD will detect the drift and restore to 1 replica (as defined in Git). This is **self-healing** in action!
-
-### Step 9: Deploy via Git push
-
-Make a change to the deployment:
+Make a change to the deployment and push:
 
 ```bash
 # Change replicas to 2
@@ -236,41 +220,49 @@ git commit -m "Scale to 2 replicas"
 git push
 ```
 
-Watch Argo CD UI - it will automatically detect the change and deploy 2 pods.
-
-### ✅ Part II Complete!
-
-You've experienced the full GitOps workflow:
-
-- **Git as source of truth** - changes come from Git, not kubectl
-- **Auto-sync** - automatic deployment when Git changes
-- **Self-healing** - automatic recovery from manual changes
+Watch Argo CD UI - it will automatically detect the change and deploy 2 pods (if auto-sync is enabled) or show OutOfSync (if manual sync).
 
 ---
 
 ## Key Concepts Recap
 
-### What Argo CD DOES
+### What Argo CD DOES ✅
 
-- Monitors Git repositories
+- Monitors Git repositories (YAML, Helm, Kustomize)
 - Compares desired state (Git) vs actual state (cluster)
 - Deploys applications to Kubernetes
 - Detects and fixes drift (self-heal)
-- Provides rollback capability
+- Provides rollback capability (via Git)
 - Audit trail of all deployments
 
-### What Argo CD DOES NOT do
+### What Argo CD does NOT do ❌
 
 - Build Docker images
 - Run tests
 - Push to container registry
-- Monitor container registry
+- Monitor container registry (only Git!)
+- Is not CI — it is CD only
 
 ### The GitOps Flow
 
 ```
-Code Push → CI (GitHub Actions) → Build Image → Update YAML → Argo CD Detects → Deploy
+Code Push → CI (GitHub Actions) → Build Image → Update YAML tag → Argo CD Detects → Deploy
 ```
+
+### When to use Argo CD?
+
+✅ **Use when:**
+
+- Multiple environments (dev/stage/prod)
+- Team > 2 people deploying
+- Need audit trail of changes
+- Drift is a problem (someone edits cluster manually)
+
+❌ **Don't use when:**
+
+- Single developer, single namespace
+- Rapid prototyping (use Tilt instead)
+- No Git repo for manifests
 
 ---
 
@@ -285,9 +277,9 @@ docker context use rancher-desktop
 docker build -t gdal-api:local -f apps/gdal-api/Dockerfile apps/gdal-api/
 ```
 
-### Argo CD shows `Unknown` status
+### Argo CD shows `OutOfSync` but won't sync
 
-Click **REFRESH** in UI or wait for the sync interval.
+Click **REFRESH** in UI or wait for the sync interval (default 3 min, or 30s if you configured it).
 
 ### Cannot access Argo CD UI
 
@@ -297,13 +289,19 @@ Make sure port-forward is running:
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
+### Application shows "Unknown" health
+
+The application might still be starting. Wait a moment and click **REFRESH**.
+
 ---
 
 ## Clean Up
 
 ```bash
 # Delete the application
-kubectl delete -f argocd/gdal-api-app.yaml
+kubectl delete -f argocd/gdal-api-auto-sync.yaml
+# or
+kubectl delete -f argocd/gdal-api-manual-sync.yaml
 
 # Delete namespace
 kubectl delete namespace geo
@@ -314,6 +312,16 @@ kubectl delete namespace argocd
 
 ---
 
+## Summary
+
+In this workshop you learned:
+
+1. **How to install Argo CD** on a local Kubernetes cluster
+2. **Manual vs Auto-Sync** - when to use each
+3. **Self-Healing** - cluster always matches Git
+4. **GitOps Flow** - Git as the single source of truth
+5. **What Argo CD does and doesn't do** - it's CD, not CI
+
 ## Next Steps
 
-- Explore [Argo Workflows](https://argoproj.github.io/argo-workflows/) for CI/CD pipelines
+- Explore [Argo Workflows](https://argoproj.github.io/argo-workflows/) for data processing pipelines
