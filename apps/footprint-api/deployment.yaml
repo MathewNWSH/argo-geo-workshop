@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: footprint-api
-        image: ghcr.io/mathewnwsh/argo-geo-workshop/footprint-api:latest
+        image: ghcr.io/mathewnwsh/argo-geo-workshop/footprint-api:09b9465d82fa5d4e45d357bab5017b297ae7ca5f
         ports:
         - containerPort: 8000
         env:
